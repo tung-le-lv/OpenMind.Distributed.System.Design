@@ -28,9 +28,7 @@ Synchronous services rely on other services to perform their work. Those service
 
 #### 3. Dependent Scaling
 
-One of the most important attributes of a microservice is the ability to scale independently. With synchronous RPC, 1,000 requests to the Payment service generate 1,000 immediate requests to the Customer service.
-
-Your ability to scale a service becomes constrained by the ability of all its dependencies to scale as well — directly tied to the degree of communication fan-out.
+One of the most important attributes of a microservice is the ability to scale independently. With synchronous RPC, if there are 1,000 requests to the Payment service, it generates 1,000 immediate requests to the Customer service, making it scaling dependent.
 
 #### 4. Distributed Monolith
 
@@ -40,7 +38,7 @@ In a monolith system, there is only one database — when Payment needs a billin
 
 #### 5. Violate AP preference in CAP Theorem
 
-As Chris Richardson notes in *Microservices Patterns*, a system can only guarantee two of three properties: consistency, availability, and partition tolerance. Most architects today favor availability over consistency.
+As Chris Richardson notes in *Microservices Patterns*, a system can only guarantee two of three properties: consistency, availability, and partition tolerance. In distrubited system, partition tolerance is unavoidable, so the real choice is between availability and consistency. Most architects today favor availability over consistency.
 
 When Payment requires Customer to be available, it reduces Payment's own availability. If Customer is down, the Payment API fails too.
 
@@ -79,7 +77,7 @@ The same person means different things in different contexts:
 - In Payment: they are a **Payer**
 - In Shipping: they are a **Recipient**
 
-Each context owns different data and exposes different operations. Microsoft's architecture documentation covers this in depth: [Asynchronous microservice integration enforces microservice autonomy](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/communication-in-microservice-architecture#asynchronous-microservice-integration-enforces-microservices-autonomy).
+Each context owns different data and exposes different operations. Microsoft's architecture documentation covers is this article: [Asynchronous microservice integration enforces microservice autonomy](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/communication-in-microservice-architecture#asynchronous-microservice-integration-enforces-microservices-autonomy).
 
 Instead of the god class above, model each context separately:
 
@@ -117,7 +115,8 @@ public class Recipient {
 
 Each model lives in its own bounded context and microservice.
 
-**How are these models created?** The UI can call each service's API directly, or route through an API gateway.
+**How data are created for each model from the UI perspective?**  
+The UI can call each service's API directly, or route through an API gateway.
 
 ![image](docs/i2.png)
 
@@ -127,7 +126,9 @@ This is the cleanest solution to the problem.
 
 ---
 
-### When Refactoring Is Too Costly: Alternative Techniques
+### Alternative Techniques
+
+When proper bounded context models are not in place and a full refactor is too costly, the following techniques can help:
 
 #### Local Data Projection
 
@@ -135,9 +136,9 @@ If restructuring the system is too expensive, consider **Local Data Projection**
 
 With this approach, Payment can still operate even when the Customer service is down. Udi Dahan discusses this technique in his distributed systems course.
 
-#### Separated Interface (for Stale Data)
+#### Separated Interface
 
-One issue with local projection is that the read model data may be stale at the time of payment. For example, what if a customer updates their payment card in the Customer service mid-transaction?
+One issue with local projection is that the read model data may be stale at the time of payment. For example, what if a customer updates their payment card in the Customer service while making payment in Payment service?
 
 Martin Fowler's **Separated Interface** pattern (from *Patterns of Enterprise Application Architecture*) addresses this. The service that needs the data (Payment) declares an interface:
 
@@ -157,4 +158,8 @@ public class CustomerPaymentInfoProvider : INeedPaymentCardInfo {
 
 Customer publishes its implementation as a separate package, which Payment imports and uses.
 
-This resolves the stale data issue. It also means Payment only requires the Customer **database** to be available — not the Customer service itself — which is significantly more reliable.
+This is actually the pattern Customer-Supplier in Context Mapping introduced by Eric Evan is his DDD blue book.
+
+We employ this technique when strong data consistency is required.  
+
+This pattern also means Payment requires the Customer **database** to be available — not the Customer service itself — which is more reliable. Payment does not directly query Customer database but via a contract that is implemented by Customer service.
