@@ -1,3 +1,20 @@
+# Common Distributed System Design Pitfalls
+
+## Table of Contents
+
+- [Synchronously Calling Another Service to Get Data](#synchronously-calling-another-service-to-get-data)
+  - [Context](#context)
+  - [Solution](#solution)
+  - [Alternative Techniques](#alternative-techniques)
+    - [Local Data Projection](#local-data-projection)
+    - [Separated Interface](#separated-interface)
+  - [When to Use Synchronous Calls Between Microservices](#when-to-use-synchronous-calls-between-microservices)
+    - [Platform Capability Services](#platform-capability-services)
+    - [Microservices Within the Same Bounded Context](#microservices-within-the-same-bounded-context)
+    - [Saga / Process Manager](#saga--process-manager)
+
+---
+
 ## Synchronously Calling Another Service to Get Data
 
 ### Context
@@ -128,22 +145,6 @@ The UI can call each service's API directly, or route through an API gateway.
 
 With this design, Payment owns the `BillingAddress` — no synchronous RPC call required. This is the cleanest solution to the problem.  
 
-> **Important Note**
->
-> 1. Microservices within the same bounded context are allowed to call each other synchronously. For example, `customer-service` can make an RPC call to `customer-achievement-service` to perform a specific task.
->
->    Generally, one bounded context maps to a single microservice, but over time it can be split into smaller ones driven by:
->    - Service scope and responsibility
->    - Scalability and throughput requirements
->    - Code volatility
->    - Fault tolerance
->    - Security boundaries
->    - Extensibility
->
->    The microservices after decomposition by the above drivers are still sit in the same bounded context and can still communicate via synchronous calls. Chapter 7 of *Software Architecture: The Hard Parts* covers these decomposition drivers in detail.
->
-> 2. To handle a business capability that spans multiple bounded contexts, use the **Saga** pattern or a **Process Manager**.
-
 > **Side Note**  
 > **Use UI composition for display needs**.  
 > *A large fraction of "I need data from another service" is really "I need to show data from several services on one screen." Udi's answer is to compose at the presentation layer, not the backend. Each service contributes its own UI widget/fragment backed by its own data, and they're stitched together in the composite UI. This avoids the backend "god service" that aggregates by calling everyone — which is the anti-pattern that produces a distributed monolith.*  
@@ -197,3 +198,27 @@ This is actually the pattern Customer-Supplier in Context Mapping introduced by 
 We employ this technique when strong data consistency is required.  
 
 This pattern also means Payment requires the Customer **database** to be available — not the Customer service itself — which is more reliable. Payment does not directly query Customer database but via a contract that is implemented by Customer service.
+
+### When to Use Synchronous Calls Between Microservices
+
+#### Platform Capability Services
+
+Platform capability services do not belong to any business bounded context. Common examples include authentication, authorization, ai-service, etc. Any microservice in any bounded context just call them synchronously.
+
+#### Microservices Within the Same Bounded Context
+
+Microservices within the same bounded context are allowed to call each other synchronously. For example, `customer-service` can make an RPC call to `customer-achievement-service`, or `payment-service` can call `payment-gateway-service` synchronously to perform its business operations.
+
+> One bounded context typically maps to a single microservice, but it can be split into smaller ones over time. Common decomposition drivers include:
+> - Service scope and responsibility
+> - Scalability and throughput requirements
+> - Code volatility
+> - Fault tolerance
+> - Security boundaries
+> - Extensibility
+>
+> Microservices produced by this decomposition remain within the same bounded context and may still communicate synchronously. Chapter 7 of *Software Architecture: The Hard Parts* covers these drivers in detail.
+
+#### Saga / Process Manager
+
+To handle a business capability that spans multiple bounded contexts, use the **Saga** pattern or a **Process Manager**. A Saga orchestrator perform a business operation by making synchronous calls to microservices across bounded contexts in a defined sequence.
