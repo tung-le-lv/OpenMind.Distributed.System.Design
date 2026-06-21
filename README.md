@@ -128,11 +128,14 @@ The UI can call each service's API directly, or route through an API gateway.
 
 ![image](docs/i2.png)
 
-With this design, Payment owns the `BillingAddress` — no synchronous RPC call required.
+With this design, Payment owns the `BillingAddress` — no synchronous RPC call required. This is the cleanest solution to the problem.  
 
-This is the cleanest solution to the problem.
-
----
+> **Side Note**  
+> *Use UI composition for display needs. A large fraction of "I need data from another service" is really "I need to show data from several services on one screen." Udi's answer is to compose at the presentation layer, not the backend. Each service contributes its own UI widget/fragment backed by its own data, and they're stitched together in the composite UI. This avoids the backend "god service" that aggregates by calling everyone — which is the anti-pattern that produces a distributed monolith.*  
+> 
+>*For this particular case, we often create an endpoint in api-gateway named GetCustomerDetails that performs RPC calls to each service in each bounded context to retrieve all the data needed for the UI "customer detail page".*
+>
+>*For a deep dive into UI data displaying patterns, see chapter 7 of Microservices Patterns by Chris Richardson: Implementing queries in a microservice architecture.*  
 
 ### Alternative Techniques
 
