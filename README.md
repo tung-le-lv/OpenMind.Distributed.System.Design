@@ -32,15 +32,13 @@ One of the most important attributes of a microservice is the ability to scale i
 
 Your ability to scale a service becomes constrained by the ability of all its dependencies to scale as well — directly tied to the degree of communication fan-out.
 
-#### 4. Failure Handling Complexity
-
-If a dependency goes down, decisions must be made about how to handle it: when to retry, when to fail, and how to recover while maintaining data consistency. The more services in the ecosystem, the harder these decisions become.
-
-#### 5. Distributed Monolith
+#### 4. Distributed Monolith
 
 Services with many intertwining synchronous calls effectively behave as a distributed monolith. This pattern commonly emerges when teams decompose a monolith and use synchronous point-to-point calls to mirror the original internal boundaries.
 
-#### 6. Reduced Availability (CAP Theorem)
+In a monolith system, there is only one database — when Payment needs a billing address, it queries the Customer table directly. When teams decompose a monolith into microservices, they carry that same mental model: "I need data from Customer, so I'll just call it." A synchronous RPC call feels identical to a SQL query but this is not a microservice architecture at all.
+
+#### 5. Violate AP preference in CAP Theorem
 
 As Chris Richardson notes in *Microservices Patterns*, a system can only guarantee two of three properties: consistency, availability, and partition tolerance. Most architects today favor availability over consistency.
 
