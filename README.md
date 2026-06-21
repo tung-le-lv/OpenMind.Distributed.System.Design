@@ -1,5 +1,3 @@
-# Common Distributed System Design Pitfalls
-
 ## Table of Contents
 
 - [Synchronously Calling Another Service to Get Data](#synchronously-calling-another-service-to-get-data)
