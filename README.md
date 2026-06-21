@@ -197,13 +197,13 @@ We employ this technique when strong data consistency is required.
 
 This pattern also means Payment requires the Customer **database** to be available — not the Customer service itself — which is more reliable. Payment does not directly query Customer database but via a contract that is implemented by Customer service.
 
-### When to Use Synchronous Calls Between Microservices
+## When to Use Synchronous Calls Between Microservices
 
-#### Platform Capability Services
+### Platform Capability Services
 
 Platform capability services do not belong to any business bounded context. Common examples include authentication, authorization, ai-service, etc. Any microservice in any bounded context just call them synchronously.
 
-#### Microservices Within the Same Bounded Context
+### Microservices Within the Same Bounded Context
 
 Microservices within the same bounded context are allowed to call each other synchronously. For example, `customer-service` can make an RPC call to `customer-achievement-service`, or `payment-service` can call `payment-gateway-service` synchronously to perform its business operations.
 
@@ -217,6 +217,6 @@ Microservices within the same bounded context are allowed to call each other syn
 >
 > Microservices produced by this decomposition remain within the same bounded context and may still communicate synchronously. Chapter 7 of *Software Architecture: The Hard Parts* covers these drivers in detail.
 
-#### Saga / Process Manager
+### Saga / Process Manager
 
 To handle a business capability that spans multiple bounded contexts, use the **Saga** pattern or a **Process Manager**. A Saga orchestrator perform a business operation by making synchronous calls to microservices across bounded contexts in a defined sequence.
