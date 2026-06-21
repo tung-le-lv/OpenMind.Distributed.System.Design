@@ -130,9 +130,9 @@ With this design, Payment owns the `BillingAddress` — no synchronous RPC call 
 
 > **Important Note**
 >
-> 1. Microservices within the same bounded context is allowed call each other synchronously. For example, `customer-service` can make an RPC call to `customer-achievement-service` to perform a specific task.
+> 1. Microservices within the same bounded context are allowed to call each other synchronously. For example, `customer-service` can make an RPC call to `customer-achievement-service` to perform a specific task.
 >
->    Generally, one bounded context maps to a single microservice but over time it can be split into smaller ones, driven by:
+>    Generally, one bounded context maps to a single microservice, but over time it can be split into smaller ones driven by:
 >    - Service scope and responsibility
 >    - Scalability and throughput requirements
 >    - Code volatility
@@ -140,12 +140,13 @@ With this design, Payment owns the `BillingAddress` — no synchronous RPC call 
 >    - Security boundaries
 >    - Extensibility
 >
->    Chapter 7 of *Software Architecture: The Hard Parts* covers these decomposition drivers in detail.
+>    The microservices after decomposition by the above drivers are still sit in the same bounded context and can still communicate via synchronous calls. Chapter 7 of *Software Architecture: The Hard Parts* covers these decomposition drivers in detail.
 >
 > 2. To handle a business capability that spans multiple bounded contexts, use the **Saga** pattern or a **Process Manager**.
 
 > **Side Note**  
-> *Use UI composition for display needs. A large fraction of "I need data from another service" is really "I need to show data from several services on one screen." Udi's answer is to compose at the presentation layer, not the backend. Each service contributes its own UI widget/fragment backed by its own data, and they're stitched together in the composite UI. This avoids the backend "god service" that aggregates by calling everyone — which is the anti-pattern that produces a distributed monolith.*  
+> **Use UI composition for display needs**.  
+> *A large fraction of "I need data from another service" is really "I need to show data from several services on one screen." Udi's answer is to compose at the presentation layer, not the backend. Each service contributes its own UI widget/fragment backed by its own data, and they're stitched together in the composite UI. This avoids the backend "god service" that aggregates by calling everyone — which is the anti-pattern that produces a distributed monolith.*  
 > 
 >*For this particular case, we often create an endpoint in api-gateway named GetCustomerDetails that performs RPC calls to each service in each bounded context to retrieve all the data needed for the UI "customer detail page".*
 >
