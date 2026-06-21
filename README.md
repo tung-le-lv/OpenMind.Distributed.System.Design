@@ -220,3 +220,7 @@ Microservices within the same bounded context are allowed to call each other syn
 ### Saga / Process Manager
 
 To handle a business capability that spans multiple bounded contexts, use the **Saga** pattern or a **Process Manager**. A Saga orchestrator can perform a business operation by making synchronous calls to microservices across bounded contexts in a defined sequence.
+
+For example, consider the requirement "unsubscribe customer from system". This must delete all customer-related data across the system, spanning multiple microservices and bounded contexts.
+
+To handle this, we can create a Saga orchestrator named CustomerUnsubscriptionSaga that perform synchromous calls to each relevant microservice in different bounded contexts to remove the customer's data.
