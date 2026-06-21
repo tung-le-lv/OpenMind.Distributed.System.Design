@@ -6,10 +6,10 @@
   - [Alternative Techniques](#alternative-techniques)
     - [Local Data Projection](#local-data-projection)
     - [Separated Interface](#separated-interface)
-  - [When to Use Synchronous Calls Between Microservices](#when-to-use-synchronous-calls-between-microservices)
-    - [Platform Capability Services](#platform-capability-services)
-    - [Microservices Within the Same Bounded Context](#microservices-within-the-same-bounded-context)
-    - [Saga / Process Manager](#saga--process-manager)
+- [When to Use Synchronous Calls Between Microservices](#when-to-use-synchronous-calls-between-microservices)
+  - [Platform Capability Services](#platform-capability-services)
+  - [Microservices Within the Same Bounded Context](#microservices-within-the-same-bounded-context)
+  - [Saga / Process Manager](#saga--process-manager)
 
 ---
 
@@ -219,4 +219,4 @@ Microservices within the same bounded context are allowed to call each other syn
 
 ### Saga / Process Manager
 
-To handle a business capability that spans multiple bounded contexts, use the **Saga** pattern or a **Process Manager**. A Saga orchestrator perform a business operation by making synchronous calls to microservices across bounded contexts in a defined sequence.
+To handle a business capability that spans multiple bounded contexts, use the **Saga** pattern or a **Process Manager**. A Saga orchestrator can perform a business operation by making synchronous calls to microservices across bounded contexts in a defined sequence.
