@@ -1,18 +1,16 @@
-# Common Distributed System Design Pitfalls
-
-## The Problem of Synchronously Calling Another Service to Get Data
+## Synchronously Calling Another Service to Get Data
 
 ### Context
 
 A common design challenge is when a service needs data owned by another service to do its job. Consider an e-commerce example: the Payment service needs a customer's billing address to complete checkout, but that data is owned by the Customer service. What should we do?
 
-![image](docs/i1.png)
+![image](docs/context.png)
 
-The first obvious solution is to have Payment make a synchronous RPC call to Customer to retrieve the billing address. However, this approach raises a number of serious concerns.
+The first obvious solution is to have Payment make a synchronous RPC call to Customer to retrieve the billing address. However, this approach raises a number of concerns.
 
 #### 1. Wrong Domain Boundary
 
-As Udi Dahan puts it in his distributed systems course:
+As Udi Dahan puts it in his [distributed systems design course](https://particular.net/adsd):
 
 > If a service needs to synchronously call another service to get data in order to do its job, that's usually a sign the boundaries are wrong — not a problem to be solved with a better RPC mechanism.
 
@@ -24,15 +22,15 @@ A service is a vertical slice that owns *all* the data and logic for a business 
 
 When Payment calls Customer, Customer must be reachable for the call to succeed. If Customer is unavailable, the call fails.
 
-Synchronous services rely on other services to perform their work. Those services, in turn, have their own dependencies, which have their own dependencies. This chain creates excessive fan-out and makes it difficult to trace which service is responsible for each piece of business logic.
+Synchronous services rely on other services to perform their work. Those services, in turn, have their own dependencies, which have their own dependencies. This makes it difficult to trace which service is responsible for each piece of business logic.
 
 #### 3. Dependent Scaling
 
 One of the most important attributes of a microservice is the ability to scale independently. With synchronous RPC, if there are 1,000 requests to the Payment service, it generates 1,000 immediate requests to the Customer service, making it scaling dependent.
 
-#### 4. Distributed Monolith
+#### 4. Distributed Monolith Anti-Pattern
 
-Services with many intertwining synchronous calls effectively behave as a distributed monolith. This pattern commonly emerges when teams decompose a monolith and use synchronous point-to-point calls to mirror the original internal boundaries.
+This pattern commonly emerges when teams decompose a monolith and use synchronous point-to-point calls to mirror the original internal boundaries.
 
 In a monolith system, there is only one database — when Payment needs a billing address, it queries the Customer table directly. When teams decompose a monolith into microservices, they carry that same mental model: "I need data from Customer, so I'll just call it." A synchronous RPC call feels identical to a SQL query but this is not a microservice architecture at all.
 
@@ -126,9 +124,25 @@ Each model lives in its own bounded context and microservice.
 **How data are created for each model from the UI perspective?**  
 The UI can call each service's API directly, or route through an API gateway.
 
-![image](docs/i2.png)
+![image](docs/solution.png)
 
 With this design, Payment owns the `BillingAddress` — no synchronous RPC call required. This is the cleanest solution to the problem.  
+
+> **Important Note**
+>
+> 1. Microservices within the same bounded context is allowed call each other synchronously. For example, `customer-service` can make an RPC call to `customer-achievement-service` to perform a specific task.
+>
+>    Generally, one bounded context maps to a single microservice but over time it can be split into smaller ones, driven by:
+>    - Service scope and responsibility
+>    - Scalability and throughput requirements
+>    - Code volatility
+>    - Fault tolerance
+>    - Security boundaries
+>    - Extensibility
+>
+>    Chapter 7 of *Software Architecture: The Hard Parts* covers these decomposition drivers in detail.
+>
+> 2. To handle a business capability that spans multiple bounded contexts, use the **Saga** pattern or a **Process Manager**.
 
 > **Side Note**  
 > *Use UI composition for display needs. A large fraction of "I need data from another service" is really "I need to show data from several services on one screen." Udi's answer is to compose at the presentation layer, not the backend. Each service contributes its own UI widget/fragment backed by its own data, and they're stitched together in the composite UI. This avoids the backend "god service" that aggregates by calling everyone — which is the anti-pattern that produces a distributed monolith.*  
