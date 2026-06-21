@@ -1,108 +1,162 @@
-# Common distributed system designs pitfalls
-## The problem of using synchronously call another service to get data in order to do its job
+# Common Distributed System Design Pitfalls
+
+## The Problem of Synchronously Calling Another Service to Get Data
+
 ### Context
-When designing a system, we may face the common use case that a service need data from another service to satisfy its job. Here is an example in ecomerce system, where making payment API need customer billing address to perform checkout but this data is owning by another service (Customer). What should we do?
+
+A common design challenge is when a service needs data owned by another service to do its job. Consider an e-commerce example: the Payment service needs a customer's billing address to complete checkout, but that data is owned by the Customer service. What should we do?
 
 ![image](docs/i1.png)
 
-The first obvious option would be: Payment makes a RPC call to Customer service to retrieve the billing address. However, there are so many questions to answer if applying this approach.
+The first obvious solution is to have Payment make a synchronous RPC call to Customer to retrieve the billing address. However, this approach raises a number of serious concerns.
 
-1. Wrong domain boundary
+#### 1. Wrong Domain Boundary
 
-Udi Dahan in his course would give: if a service needs to synchronously call another service to get data in order to do its job, that's usually a sign the boundaries are wrong, not a problem to be solved with a better RPC mechanism. So the first move is always to challenge the requirement rather than satisfy it.
+As Udi Dahan puts it in his distributed systems course:
 
-A service is a vertical slice that owns *all* the data and logic for a business capability. If Service A constantly needs Service B's data to make a decision, the behavior that needs that data may actually belong inside B, or the two may really be one service. Autonomy is the goal: a service should be able to do its work even when every other service is down. A synchronous data dependency destroys that.
+> If a service needs to synchronously call another service to get data in order to do its job, that's usually a sign the boundaries are wrong — not a problem to be solved with a better RPC mechanism.
 
-2. Point-to-point couplings/ Temporal coupling
+The first move should always be to challenge the requirement, not to satisfy it.
 
-Temporal coupling is high. When the Payment makes a call to Customer, the Customer microservice needs to be reachable for the call to work. If the Customer microservice is unavailable, the call will fail.
+A service is a vertical slice that owns *all* the data and logic for a business capability. If Service A constantly needs Service B's data to make a decision, the behavior requiring that data may actually belong inside B — or the two may really be one service. The goal is autonomy: a service should be able to do its work even when every other service is down. A synchronous data dependency destroys that.
 
-Synchronous microservices rely on other services to help them perform their business tasks. Those services, in turn, have their own dependent services, which have their own dependent services.
+#### 2. Temporal Coupling
 
-This can lead to excessive fan-out and difficulty in tracing which services are responsible for fulfilling specific parts of the business logic.
+When Payment calls Customer, Customer must be reachable for the call to succeed. If Customer is unavailable, the call fails.
 
-3. Dependent scaling
-One of the most important attributute of microservice is the ability to scale independently. Using synchronous RPC, if 1000 requests reaches Payment services, there are 1000 immediate requests accordingly to the Customer service.
+Synchronous services rely on other services to perform their work. Those services, in turn, have their own dependencies, which have their own dependencies. This chain creates excessive fan-out and makes it difficult to trace which service is responsible for each piece of business logic.
 
-The ability to scale up your own service depends on the ability of all dependent services to scale up as well and is directly related to the degree of communications fan-out.
+#### 3. Dependent Scaling
 
-4. Service failure handling
+One of the most important attributes of a microservice is the ability to scale independently. With synchronous RPC, 1,000 requests to the Payment service generate 1,000 immediate requests to the Customer service.
 
-If a dependent service is down, then decisions must be made about how to handle the exception.
+Your ability to scale a service becomes constrained by the ability of all its dependencies to scale as well — directly tied to the degree of communication fan-out.
 
-Deciding how to handle the outages, when to retry, when to fail, and how to recover to ensure data consistency becomes increasingly difficult the more services there are within the ecosystem.
+#### 4. Failure Handling Complexity
 
-5. Distributed monoliths
+If a dependency goes down, decisions must be made about how to handle it: when to retry, when to fail, and how to recover while maintaining data consistency. The more services in the ecosystem, the harder these decisions become.
 
-Services may be composed such that they act as a distributed monolith, with many intertwining calls being made between them.
+#### 5. Distributed Monolith
 
-This situation often arises when a team is decomposing a monolith and decides to use synchronous point-to-point calls to mimic the existing boundaries within their monolith.
+Services with many intertwining synchronous calls effectively behave as a distributed monolith. This pattern commonly emerges when teams decompose a monolith and use synchronous point-to-point calls to mirror the original internal boundaries.
 
-6. Violate AP in CAP theorem
-Regardung CAP, Chris Richardson mentiosn in this book "Microservies Patterns" that a system can only have two of the following three properties: consistency, availability, and partition tolerance. Today, architects prefer to have a system that’s available rather than one that’s consistent.
+#### 6. Reduced Availability (CAP Theorem)
 
-When making Payment, it requires Customer service to be available, which reduces the availability of the API. If Customer service is down, the API returns a failed status code.
+As Chris Richardson notes in *Microservices Patterns*, a system can only guarantee two of three properties: consistency, availability, and partition tolerance. Most architects today favor availability over consistency.
 
-If you want to maximize availability, you must minimize the amount of synchronous communication.
+When Payment requires Customer to be available, it reduces Payment's own availability. If Customer is down, the Payment API fails too.
+
+> If you want to maximize availability, you must minimize synchronous communication.
+
+---
 
 ### Solution
-To solve this problem, we need to answer the question: why the payment service doesn't own the billing address at the beggining?
 
-Perhalf human mental model may think that billing address is something belong to customer in nature. We may create a single model Customer thats contains all information belong to them such as name, email, phone, billing address, customer shopping preferences, etc.
+To solve this, we need to ask: **why doesn't the Payment service own the billing address in the first place?**
 
-But in Domain Driven Design, Eric Evan emphasize that creating a big model to satify every context is an design smell. That is why he invented the term Bounded Context and Ubiquitous Language.
+It's natural to think of billing address as belonging to a "Customer." This leads to creating a single, all-encompassing Customer model:
 
-In the context of Customer management service, a person is a customer, but the same person in the context of shopping, it is a Buyer. In the context of Payment, it is a Payer, and even in context of shippipng, it is a recepient. We should accept that the same entity, in diferrent context, they have diffent meaning, they own diffent data and operations.
-For example, the shopping context, we only care about customer shopping preferences. In payment context, we care about customer billing address or payment card details. Microsoft even had this artile (link https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/communication-in-microservice-architecture#asynchronous-microservice-integration-enforces-microservices-autonomy) about this topic.
-
-So, in general, instead of creating a single model Customer (we often call it god class) like this:
-
-public class Customer{
-    public GUID Id;
+```csharp
+public class Customer {
+    public Guid Id;
     public string Name;
-    public string Email:
-    public BillingAddress;
-    public PaymentCards;
-    public ShippingAddress;
-    public ShoppingPreferences preferences;
+    public string Email;
+    public BillingAddress BillingAddress;
+    public PaymentCards PaymentCards;
+    public ShippingAddress ShippingAddress;
+    public ShoppingPreferences Preferences;
 
-    // public methods
-    public CreateContact();
-    public AddBillingAddress();
-    public AddPaymentCard();
-    public AddShippingInfo();
+    public void CreateContact() { }
+    public void AddBillingAddress() { }
+    public void AddPaymentCard() { }
+    public void AddShippingInfo() { }
+}
+```
+
+But in Domain-Driven Design, Eric Evans argues that creating one large model to satisfy every context is a design smell — which is why he introduced the concepts of **Bounded Context** and **Ubiquitous Language**.
+
+The same person means different things in different contexts:
+- In Customer Management: they are a **Customer**
+- In Shopping: they are a **Buyer**
+- In Payment: they are a **Payer**
+- In Shipping: they are a **Recipient**
+
+Each context owns different data and exposes different operations. Microsoft's architecture documentation covers this in depth: [Asynchronous microservice integration enforces microservice autonomy](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/communication-in-microservice-architecture#asynchronous-microservice-integration-enforces-microservices-autonomy).
+
+Instead of the god class above, model each context separately:
+
+```csharp
+// Customer context — identity and contact info only
+public class Customer {
+    public Guid Id;
+    public string Name;
+    public string Email;
+    public string Phone;
 }
 
-we should break this model based on the context:
-public class Customer{
-
+// Shopping context — purchasing relating only
+public class Buyer {
+    public Id;
+    public Identity CustomerId;
+    public ShoppingPreferences Preferences;
 }
 
-public class Buyer{
-
+// Payment context — billing and payment details only
+public class Payer {
+    public Guid Id;
+    public Identity CustomerId;
+    public BillingAddress BillingAddress;
+    public List<PaymentCard> PaymentCards;
 }
 
-public class Payer{
-
+// Shipping context — delivery details only
+public class Recipient {
+    public Id;
+    public Identity CustomerId;
+    public ShippingAddress ShippingAddress;
 }
+```
 
-public class Recepient{
+Each model lives in its own bounded context and microservice.
 
-}
-
-Each model should lives in its own bounded contexts and microsercices.
-
-How to create these models? 
-UI can call each API in each context to create them or laverage an API gateway.
+**How are these models created?** The UI can call each service's API directly, or route through an API gateway.
 
 ![image](docs/i2.png)
 
-Now we can see Payment now own the BillingAddress, no synchonous RPC call required anymore.
+With this design, Payment owns the `BillingAddress` — no synchronous RPC call required.
 
-This the cleanest way to resolve the problem of synchonous RPC that gets data from other services.
+This is the cleanest solution to the problem.
 
-There are some cases that we genuinly need the billing address, but the effort of re-factor our system is expensive, we can do a technique name "Local data projection". Here when creating a customer in customer sergice, payment service subscribes to the event CustomerCreated, extract billing address or any data that payment needs and save to a read model table name Payer. With this appoarch, payment can still operate even the case of customer service is in downtime. Udi Dahan mentions this apporach in his course about distributed system design.
+---
 
-One issue with the local projection is the data may be staled at the time of making payment. What if the payment card is updated in customer service while making a payment in payment service, we may need another technique, introducing by Marin Fowler, call "Separated Interface", in the book "Patterns of Enterprise Application Architecture". 
-With this approach, the service that need the data (Payment) declard an interface (INeedPaymentCardInfo) and export it as an package (nuget packet in .net or package in java), the service that owns the data (Customer) implement this interface (CustomerPaymentInfoProvider) to retrive the data and export it as a package, Payment then import this package. This resolve the issue of staled data. It also revolve the issues of it needs Customer service to be available at all time, now it just need its database available, which is more stable. 
+### When Refactoring Is Too Costly: Alternative Techniques
 
+#### Local Data Projection
+
+If restructuring the system is too expensive, consider **Local Data Projection**. When a customer is created in the Customer service, the Payment service subscribes to the `CustomerCreated` event, extracts the billing address (and any other data it needs), and saves it to a local read model — for example, a `Payer` table.
+
+With this approach, Payment can still operate even when the Customer service is down. Udi Dahan discusses this technique in his distributed systems course.
+
+#### Separated Interface (for Stale Data)
+
+One issue with local projection is that the read model data may be stale at the time of payment. For example, what if a customer updates their payment card in the Customer service mid-transaction?
+
+Martin Fowler's **Separated Interface** pattern (from *Patterns of Enterprise Application Architecture*) addresses this. The service that needs the data (Payment) declares an interface:
+
+```csharp
+public interface INeedPaymentCardInfo {
+    PaymentCardInfo GetPaymentCardInfo(Guid customerId);
+}
+```
+
+This interface is published as a package (NuGet in .NET, a JAR in Java). The service that owns the data (Customer) implements the interface:
+
+```csharp
+public class CustomerPaymentInfoProvider : INeedPaymentCardInfo {
+    public PaymentCardInfo GetPaymentCardInfo(Guid customerId) { ... }
+}
+```
+
+Customer publishes its implementation as a separate package, which Payment imports and uses.
+
+This resolves the stale data issue. It also means Payment only requires the Customer **database** to be available — not the Customer service itself — which is significantly more reliable.
