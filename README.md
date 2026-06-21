@@ -77,7 +77,7 @@ The same person means different things in different contexts:
 - In Payment: they are a **Payer**
 - In Shipping: they are a **Recipient**
 
-Each context owns different data and exposes different operations. Microsoft's architecture documentation covers is this article: [Asynchronous microservice integration enforces microservice autonomy](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/communication-in-microservice-architecture#asynchronous-microservice-integration-enforces-microservices-autonomy).
+Each context owns different data and exposes different operations. Microsoft's architecture documentation covers this in this article: [Asynchronous microservice integration enforces microservice autonomy](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/communication-in-microservice-architecture#asynchronous-microservice-integration-enforces-microservices-autonomy).
 
 Instead of the god class above, model each context separately:
 
