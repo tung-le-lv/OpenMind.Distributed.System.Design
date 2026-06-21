@@ -69,7 +69,7 @@ public class Customer {
 }
 ```
 
-But in Domain-Driven Design, Eric Evans argues that creating one large model to satisfy every context is a design smell — which is why he introduced the concepts of **Bounded Context** and **Ubiquitous Language**.
+But in Domain-Driven Design, Eric Evans argues that creating one large model to satisfy every context is a design smell — which is why he introduced the concepts of **Bounded Context** and **Ubiquitous Language**. For more about DDD, checkout my article and code example at https://github.com/tung-le-lv/OpenMind.DDD.Patterns.
 
 The same person means different things in different contexts:
 - In Customer Management: they are a **Customer**
