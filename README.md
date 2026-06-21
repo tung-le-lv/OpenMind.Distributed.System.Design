@@ -77,7 +77,7 @@ The same person means different things in different contexts:
 - In Payment: they are a **Payer**
 - In Shipping: they are a **Recipient**
 
-Each context owns different data and exposes different operations. Microsoft's architecture documentation covers this in this article: [Asynchronous microservice integration enforces microservice autonomy](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/communication-in-microservice-architecture#asynchronous-microservice-integration-enforces-microservices-autonomy).
+Each context owns different data and exposes different operations.
 
 Instead of the god class above, model each context separately:
 
@@ -88,6 +88,8 @@ public class Customer {
     public string Name;
     public string Email;
     public string Phone;
+
+    public void AddContactInfo();
 }
 
 // Shopping context — purchasing relating only
@@ -95,6 +97,8 @@ public class Buyer {
     public Id;
     public Identity CustomerId;
     public ShoppingPreferences Preferences;
+
+    public void AddShoppingPreferences();
 }
 
 // Payment context — billing and payment details only
@@ -103,6 +107,8 @@ public class Payer {
     public Identity CustomerId;
     public BillingAddress BillingAddress;
     public List<PaymentCard> PaymentCards;
+
+    public void AddPaymentCards();
 }
 
 // Shipping context — delivery details only
@@ -110,6 +116,8 @@ public class Recipient {
     public Id;
     public Identity CustomerId;
     public ShippingAddress ShippingAddress;
+
+    public void AddShippingInfo();
 }
 ```
 
@@ -132,9 +140,17 @@ When proper bounded context models are not in place and a full refactor is too c
 
 #### Local Data Projection
 
-If restructuring the system is too expensive, consider **Local Data Projection**. When a customer is created in the Customer service, the Payment service subscribes to the `CustomerCreated` event, extracts the billing address (and any other data it needs), and saves it to a local read model — for example, a `Payer` table.
+If restructuring the system is too expensive, consider **Local Data Projection**. When a customer is created in the Customer service, the Payment service subscribes to the `CustomerCreated` event, extracts the billing address (and any other data it needs), and saves it to a local read model — `PayerReadModel` table.
 
 With this approach, Payment can still operate even when the Customer service is down. Udi Dahan discusses this technique in his distributed systems course.
+
+Even Microsoft's architecture documentation covers this in the article: [Asynchronous microservice integration enforces microservice autonomy](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/communication-in-microservice-architecture#asynchronous-microservice-integration-enforces-microservices-autonomy). This is a citing from the article:  
+> *If possible, never depend on synchronous communication (request/response) between multiple microservices, not even for queries. The goal of each microservice is to be autonomous and available to the client consumer.*
+>
+> *If a microservice needs data that's originally owned by other microservices, do not rely on making synchronous requests for that data. Instead, replicate or propagate that data (only the attributes you need) into the initial service's database by using eventual consistency.*
+>
+> *Duplicating some data across several microservices isn't an incorrect design—on the contrary, when doing that you can translate the data into the specific language or terms of that additional domain or Bounded Context. For instance, in the eShopOnContainers application you have a microservice named identity-api that's in charge of most of the user's data with an entity named User. However, when you need to store data about the user within the Ordering microservice, you store it as a different entity named Buyer. The Buyer entity shares the same identity with the original User entity, but it might have only the few attributes needed by the Ordering domain, and not the whole user profile.*  
+
 
 #### Separated Interface
 
